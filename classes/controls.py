@@ -318,6 +318,23 @@ class controls:
 
         return new_sys
 
+    def sf_optimal_LQR(system,Q,R,subs=False):
+        
+        P = spla.solve_continuous_are(system.A,system.B,Q,R)
+
+        K = np.matmul(np.matmul(la.inv(R),system.B.transpose()),P)
+
+        Abar = np.subtract(system.A, np.matmul(system.B,K))
+        if subs == False:
+            new_sys = copy.deepcopy(system)
+        else:
+            new_sys = system
+
+        new_sys.A = Abar
+        new_sys.initialize()
+        return new_sys
+
+
     #____________________________________________________________
     # State transition matrix
     #____________________________________________________________

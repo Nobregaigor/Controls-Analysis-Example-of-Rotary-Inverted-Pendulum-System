@@ -17,39 +17,73 @@ if __name__ == '__main__':
     print('Developed by Igor Nobrega')
     print('\n' + '#'*65 + '\n')
 
-
     #######################################################################
     # Defining Constants
     #######################################################################
 
-    # creating pendulum as a control system:
+    # Values for pendulum
     A = [[0,0,1,0],[0,0,0,1],[0,149.2751,-0.0104,0],[0,261.6091,-0.0103,0]]
     B = [[0],[0],[49.7275],[49.1494]]
     C = [1, 0, 0, 0]
 
+    # Initial position
     x0 = np.array([[3],[5],[2],[1]])
+
+    # Values for State Feedback pole placement
     p1 = [-1,-2,-3,-4]
     p2 = [-11,-7,-2,-5]
 
+    # Values for State Feedback LQR
+    Q1 = np.identity(4)*1
+    R1 = [[100]]
+
+    Q2 = [[10,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
+    R2 = [[100]]
+
+    # Number of points used to plot responses
+    n_points = 400
+
     #######################################################################
-    # Creating objects
+    # Creating main pendulum
     #######################################################################
 
     pendulum = ctr_sys(A, B, C)
 
+    #######################################################################
+    # Applying Control
+    #######################################################################
+
+    # Pole placement
     pendulum_1 = controls.sf_pole_placement(pendulum,p1)
     pendulum_2 = controls.sf_pole_placement(pendulum,p2)
+
+    # LQR Optimal solution
+    pendulum_3 = controls.sf_optimal_LQR(pendulum,Q1,R1)
+    pendulum_4 = controls.sf_optimal_LQR(pendulum,Q2,R2)
 
     #######################################################################
     # Ploting responses
     #######################################################################
 
-    pendulum.plot_response(x0,[0,10],100)
-    pendulum_1.plot_response(x0,[0,10],100)
-    pendulum_2.plot_response(x0,[0,10],100)
-
+    pendulum.plot_response(x0,[0,10],n_points)
+    pendulum_1.plot_response(x0,[0,10],n_points)
+    pendulum_2.plot_response(x0,[0,10],n_points)
+    pendulum_3.plot_response(x0,[0,10],n_points)
+    pendulum_4.plot_response(x0,[0,10],n_points)
 
     plt.show(block=True)
+
+
+
+
+
+
+
+
+
+
+
+
 
     # phi = controls.apply_method3(pendulum.A)
 

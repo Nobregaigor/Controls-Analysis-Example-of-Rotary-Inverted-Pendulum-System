@@ -55,12 +55,12 @@ class ctr_sys():
 
     def plot_response(self,x0,time,res=100):
         dt = (time[1] - time[0]) / res
+        r_t = range(res)
 
         time_ = np.linspace(time[0],time[1],res)
         res = np.zeros([self.n,res])
 
         x = x0
-        r_t = range(100)
         for i in r_t:
             x = x + dt*(np.matmul(self.A,x))
             res[:,i] = x[:,0]
