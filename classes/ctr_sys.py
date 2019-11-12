@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 
 from classes.controls import controls
 
+class ctrs():
+    def __init__(self):
+        self.applied = []
+        self.K1 = None
+        self.K2 = None
+
 
 class ctr_sys():
     def __init__(self,A,B,C,D=0,type='LTI'):
@@ -21,6 +27,8 @@ class ctr_sys():
         self.stbly = None
         self.ctrb = None
         self.obsv = None
+
+        self.ctrs = ctrs()
 
         self.initialize()
 
@@ -61,9 +69,15 @@ class ctr_sys():
         res = np.zeros([self.n,res])
 
         x = x0
-        for i in r_t:
-            x = x + dt*(np.matmul(self.A,x))
-            res[:,i] = x[:,0]
+
+        if self.ctrs.K2 != None:
+            for i in r_t:
+                x = x + dt*(np.matmul(self.A,x) + self.B)
+                res[:,i] = x[:,0]
+        else:
+            for i in r_t:
+                x = x + dt*(np.matmul(self.A,x))
+                res[:,i] = x[:,0]
 
         # Create a plot
         plt.ion()
@@ -72,5 +86,14 @@ class ctr_sys():
         plot = fig.add_subplot(111)
         plot.grid(color='#9c94af', linestyle='--', linewidth=0.5)
         range_n = range(self.n)
+        labels = []
         for i in range_n:
             plot.plot(time_,res[i,:])
+
+            l = 'x'+str(i)
+            labels.append(l)
+
+
+        plot.legend(labels)
+        plt.xlabel('time [s]')
+        plt.ylabel('x matrix')

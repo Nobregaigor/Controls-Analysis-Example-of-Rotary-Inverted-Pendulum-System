@@ -314,12 +314,14 @@ class controls:
             new_sys = system
 
         new_sys.A = Abar
+        new_sys.ctrs.applied.append('poles_placement')
+        new_sys.ctrs.K1 = K
         new_sys.initialize()
 
         return new_sys
 
     def sf_optimal_LQR(system,Q,R,subs=False):
-        
+
         P = spla.solve_continuous_are(system.A,system.B,Q,R)
 
         K = np.matmul(np.matmul(la.inv(R),system.B.transpose()),P)
@@ -331,8 +333,38 @@ class controls:
             new_sys = system
 
         new_sys.A = Abar
+        new_sys.ctrs.applied.append('LQR')
+        new_sys.ctrs.K1 = K
         new_sys.initialize()
         return new_sys
+
+    def fbfw(system,subs=False):
+
+        if system.ctrb.type == 'CC':
+            a = np.matmul(-system.C, la.inv(system.A))
+            a = np.matmul(a, system.B)
+
+            if len(a) == 1:
+                K2 = 1/a[0]
+            else:
+                K2 = la.solve(a,np.identity(system.n))
+
+            Bbar = system.B*K2
+
+            if subs == False:
+                new_sys = copy.deepcopy(system)
+            else:
+                new_sys = system
+
+            new_sys.B = Bbar
+            new_sys.ctrs.applied.append('fbfw')
+            new_sys.ctrs.K2 = K2
+            new_sys.initialize()
+            return new_sys
+        else:
+            raise ValueError('System must be CC. Please, check input system.')
+
+
 
 
     #____________________________________________________________
