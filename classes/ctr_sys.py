@@ -61,7 +61,7 @@ class ctr_sys():
         print('Observability gramian:\n' + str(self.obsv.gram))
         print('\n' + '-'*65 + '\n')
 
-    def plot_response(self,x0,time,res=100):
+    def plot_response(self,x0,time,c=0,res=100):
         dt = (time[1] - time[0]) / res
         r_t = range(res)
 
@@ -72,7 +72,7 @@ class ctr_sys():
 
         if self.ctrs.K2 != None:
             for i in r_t:
-                x = x + dt*(np.matmul(self.A,x) + self.B)
+                x = x + dt*(np.matmul(self.A,x) + self.B*c)
                 res[:,i] = x[:,0]
         else:
             for i in r_t:
