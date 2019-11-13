@@ -29,55 +29,75 @@ if __name__ == '__main__':
     # Initial position
     x0 = np.array([[0.4],[0.2],[0.],[0.]])
 
+    x0_C = np.array([[0.],[0.],[0.],[0.]])
+
     # Time interval
-    t_ = [0, 10]
+    t_ = [0, 5]
 
     # Values for State Feedback pole placement
-    p1 = [-1,-2,-3,-4]
-    p2 = [-11,-7,-2,-5]
+    poles = [-1.75,-5,-15,-16]
 
     # Values for State Feedback LQR
-    Q1 = np.identity(4)*1
-    R1 = [[100]]
+    Q = [[5,0,0,0],[0,50,0,0],[0,0,1,0],[0,0,0,1]]
+    R = [[10]]
 
-    Q2 = [[10,0,0,0],[0,50,0,0],[0,0,1,0],[0,0,0,1]]
-    R2 = [[10]]
+    # Command following point
+    c_point = 1.5
 
     # Number of points used to plot responses
     n_points = 400
 
     #######################################################################
-    # Creating main pendulum
+    # Creating pendulum
     #######################################################################
 
+    print('A1-A4:')
+    print('The Rotary Inverted Pendulum System:\n')
+    print('.'*65 + '\n')
     pendulum = ctr_sys(A, B, C)
+    print('_.'*45 + '\n')
+
+
+    #A5
+    #Erronous pendulum
+    Aerr = A
+    Aerr[0] = [1,0,0,0]
+
+    print('.'*65 + '\n')
+    print('\nA5:')
+    print('Erronous Pendulum:\n')
+    print('.'*65 + '\n')
+    pendulum_err = ctr_sys(A, B, C)
+    print('_.'*45 + '\n')
 
     #######################################################################
     # Applying Control
     #######################################################################
 
     # Pole placement
-    # pendulum_1 = controls.sf_pole_placement(pendulum,p1)
-    # pendulum_2 = controls.sf_pole_placement(pendulum,p2)
+    pendulum_pp = controls.sf_pole_placement(pendulum,poles)
 
     # LQR Optimal solution
-    # pendulum_3 = controls.sf_optimal_LQR(pendulum,Q1,R1)
-    pendulum_4 = controls.sf_optimal_LQR(pendulum,Q2,R2)
+    pendulum_LQR = controls.sf_optimal_LQR(pendulum,Q,R)
 
-    pendulum_5 = controls.fbfw(pendulum_4)
-
+    # Feedback Feedforward Control (needs a stabilized system)
+    pendulum_fbfw = controls.fbfw(pendulum_LQR)
 
     #######################################################################
     # Ploting responses
     #######################################################################
 
-    # pendulum.plot_response(x0,t_,n_points)
-    # pendulum_1.plot_response(x0,t_,n_points)
-    # pendulum_2.plot_response(x0,t_,n_points)
-    # pendulum_3.plot_response(x0,t_,n_points)
-    pendulum_4.plot_response(x0,t_,n_points)
+    ## Ploting the response of the open loop system
+    pendulum.plot_response(x0,t_,title='Open Loop response',res=n_points)
 
-    pendulum_5.plot_response(x0,t_,n_points)
+    ## Ploting the response of the stabilized system using Pole placement
+    pendulum_pp.plot_response(x0,t_,title='Pole Placement Stabilization',res=n_points)
+
+    ## Ploting the response of the stabilized system using LQR
+    pendulum_LQR.plot_response(x0,t_,title='LQR Stabilization',res=n_points)
+
+    ## Ploting the response of the command followed system using Feedback Feedforward control
+    pendulum_fbfw.plot_response(x0_C,t_,c_point,title='Feedback Feedforward Control',res=n_points)
 
     plt.show(block=True)
 

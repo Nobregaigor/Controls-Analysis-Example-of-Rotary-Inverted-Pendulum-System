@@ -141,7 +141,7 @@ class controls:
             val = controls.apply_decomposition(system,gram)
 
             A22 = val[0][system.n-1][system.n-1]
-            type = 'NCC. Can make closed loop system asymp. stable.'
+            type = 'NCC. Can make closed loop system AS.'
 
             if np.isscalar(A22):
                 if A22.real >= 0:

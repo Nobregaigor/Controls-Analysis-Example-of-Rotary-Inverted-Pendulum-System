@@ -21,7 +21,7 @@ class ctr_sys():
         self.type = type
 
         self.n = len(self.A)
-        self.m = len(self.B)
+        self.m = self.B.shape[1]
         self.r = len(self.C)
 
         self.stbly = None
@@ -61,39 +61,69 @@ class ctr_sys():
         print('Observability gramian:\n' + str(self.obsv.gram))
         print('\n' + '-'*65 + '\n')
 
-    def plot_response(self,x0,time,res=100):
+    def plot_response(self,x0,time,c_point=0,title='Untitled',res=100):
         dt = (time[1] - time[0]) / res
         r_t = range(res)
 
         time_ = np.linspace(time[0],time[1],res)
-        res = np.zeros([self.n,res])
-
+        X_res = np.zeros([self.n,res])
+        U_res = np.zeros([self.m,res])
         x = x0
-
-        if self.ctrs.K2 != None:
-            for i in r_t:
-                x = x + dt*(np.matmul(self.A,x) + self.B)
-                res[:,i] = x[:,0]
+        
+        if len(self.ctrs.applied) != 0:
+            if self.ctrs.K1.any() != None and self.ctrs.K2 == None:
+                K1 = self.ctrs.K1
+                K2 = np.array([0])
+            elif self.ctrs.K2.any() != None:
+                K1 = self.ctrs.K1
+                K2 = self.ctrs.K2
+            else:
+                K1 = np.zeros([1,self.n])
+                K2 = np.array([0])
         else:
-            for i in r_t:
-                x = x + dt*(np.matmul(self.A,x))
-                res[:,i] = x[:,0]
+            K1 = K1 = np.zeros([1,self.n])
+            K2 = np.array([0])
+
+        for i in r_t:
+            x = x + dt*(np.matmul(self.A,x) + self.B*c_point)
+            X_res[:,i] = x[:,0]
+            u = np.matmul(-K1,x) + K2 * c_point
+            U_res[:,i] = u[:,0]
 
         # Create a plot
         plt.ion()
         # Create a figure
         fig = plt.figure()
-        plot = fig.add_subplot(111)
+        plot = fig.add_subplot(211)
         plot.grid(color='#9c94af', linestyle='--', linewidth=0.5)
+
+        U_plot = fig.add_subplot(212)
+        U_plot.grid(color='#9c94af', linestyle='--', linewidth=0.5)
+
         range_n = range(self.n)
-        labels = []
+        X_labels = []
         for i in range_n:
-            plot.plot(time_,res[i,:])
-
+            plot.plot(time_,X_res[i,:])
             l = 'x'+str(i)
-            labels.append(l)
+            X_labels.append(l)
+
+        range_m = range(self.m)
+        U_labels = []
+        for i in range_m:
+            U_plot.plot(time_,U_res[i,:])
+            l = 'u'+str(i)
+            U_labels.append(l)
 
 
-        plot.legend(labels)
-        plt.xlabel('time [s]')
-        plt.ylabel('x matrix')
+        fig.suptitle(title,fontsize=16)
+        plt.subplots_adjust(wspace = 0.2,hspace = 0.5)
+
+        plot.legend(X_labels)
+        plot.set_xlabel('time [s]')
+        plot.set_ylabel('x matrix')
+        plot.set_title('X response')
+
+        U_plot.legend(U_labels)
+        U_plot.set_xlabel('time [s]')
+        U_plot.set_ylabel('U matrix')
+        U_plot.set_title('U response')
