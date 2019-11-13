@@ -40,8 +40,8 @@ if __name__ == '__main__':
     Q1 = np.identity(4)*1
     R1 = [[100]]
 
-    Q2 = [[100,0,0,0],[0,50,0,0],[0,0,1,0],[0,0,0,1]]
-    R2 = [[100]]
+    Q2 = [[10,0,0,0],[0,50,0,0],[0,0,1,0],[0,0,0,1]]
+    R2 = [[10]]
 
     # Number of points used to plot responses
     n_points = 400
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     # pendulum_3.plot_response(x0,t_,n_points)
     pendulum_4.plot_response(x0,t_,n_points)
 
-    pendulum_5.plot_response(x0,t_,2.5,n_points)
+    pendulum_5.plot_response(x0,t_,n_points)
 
     plt.show(block=True)
 
