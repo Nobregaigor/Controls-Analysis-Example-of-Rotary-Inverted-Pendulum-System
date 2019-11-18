@@ -104,7 +104,7 @@ class controls:
             for i in range_n:
                 val = np.matmul(system.C,la.matrix_power(system.A,i))
                 for j in range_n:
-                    gram[i][j] = val[j]
+                    gram[i][j] = val[0][j] # KEEEP A LOOK HERE, MIGHT AFFECT STUFF LATER
             return gram
 
     #____________________________________________________________
@@ -280,7 +280,10 @@ class controls:
     # State Feedback
     #____________________________________________________________
 
-    def place_poles(system,poles):
+    def make_hurwitz(A,B,K):
+        return np.subtract(A, np.matmul(B,K))
+
+    def place_poles(A,B,poles):
         """
             Wrapper of the scipy.signal.place_poles
             Calculates the K matrix of a system with desired poles
@@ -290,7 +293,7 @@ class controls:
             Returns:
                 Numpy array: K matrix with the placed poles
         """
-        K = spsg.place_poles(system.A,system.B,poles)
+        K = spsg.place_poles(A,B,poles)
         return K.gain_matrix
 
     def sf_pole_placement(system,poles,subs=False):
@@ -304,38 +307,36 @@ class controls:
             Returns:
                 System object: new system with the applied poles.
         """
-        K = controls.place_poles(system,poles)
+        K = controls.place_poles(system.A,system.B,poles)
+
+        new_sys = system if subs else copy.deepcopy(system)
+
         #make hurwitz
-        Abar = np.subtract(system.A, np.matmul(system.B,K))
-
-        if subs == False:
-            new_sys = copy.deepcopy(system)
-        else:
-            new_sys = system
-
-        new_sys.A = Abar
+        new_sys.A = controls.make_hurwitz(system.A,system.B,K)
         new_sys.ctrs.applied.append('poles_placement')
         new_sys.ctrs.K1 = K
-        new_sys.initialize()
+
+        # new_sys.initialize()
 
         return new_sys
 
+    def LQR(A,B,Q,R):
+        P = spla.solve_continuous_are(A,B,Q,R)
+        K = np.matmul(np.matmul(la.inv(R),B.transpose()),P)
+        return K
+
     def sf_optimal_LQR(system,Q,R,subs=False):
 
-        P = spla.solve_continuous_are(system.A,system.B,Q,R)
+        # P = spla.solve_continuous_are(system.A,system.B,Q,R)
+        # K = np.matmul(np.matmul(la.inv(R),system.B.transpose()),P)
+        K = controls.LQR(system.A,system.B,Q,R)
 
-        K = np.matmul(np.matmul(la.inv(R),system.B.transpose()),P)
+        new_sys = system if subs else copy.deepcopy(system)
 
-        Abar = np.subtract(system.A, np.matmul(system.B,K))
-        if subs == False:
-            new_sys = copy.deepcopy(system)
-        else:
-            new_sys = system
-
-        new_sys.A = Abar
+        new_sys.A = controls.make_hurwitz(system.A,system.B,K)
         new_sys.ctrs.applied.append('LQR')
         new_sys.ctrs.K1 = K
-        new_sys.initialize()
+        # new_sys.initialize()
         return new_sys
 
     def fbfw(system,subs=False):
@@ -349,20 +350,82 @@ class controls:
             else:
                 K2 = la.solve(a,np.identity(system.n))
 
-            Bbar = system.B*K2
-
             if subs == False:
                 new_sys = copy.deepcopy(system)
             else:
                 new_sys = system
 
-            new_sys.B = Bbar
+            new_sys.B = system.B*K2
             new_sys.ctrs.applied.append('fbfw')
             new_sys.ctrs.K2 = K2
-            new_sys.initialize()
+            # new_sys.initialize()
             return new_sys
         else:
             raise ValueError('System must be CC. Please, check input system.')
+
+
+    def sf_pi(system,methValues,meth='LQR',stab_test=False,subs=False):
+        # def new system:
+        F = np.c_[ np.vstack([system.A, system.C]), np.zeros(system.A.shape[0] + system.C.shape[0])]
+        G = np.r_[ system.B, np.zeros([system.B.shape[1],system.B.shape[1]])]
+        H = np.r_[ np.zeros([system.B.shape[0],system.B.shape[1]]), -np.identity(system.B.shape[1])]
+
+        print('F:')
+        print(F)
+        print('G:')
+        print(G)
+        print('H:')
+        print(H)
+
+        #check controlability
+        c_matrix = np.vstack((np.hstack((system.A,system.B)), np.hstack((system.C, np.zeros([system.C.shape[0],system.B.shape[1]])))))
+        print('c_matrix:')
+        print(c_matrix)
+
+        if la.matrix_rank(c_matrix) == system.n + system.m:
+            sys_ctrb = 'CC'
+        else:
+            sys_ctrb = 'NCC'
+
+        # Find K values
+        if meth=='PP':
+            K = controls.place_poles(F,G,methValues)
+
+        elif meth=='LQR':
+            K = controls.LQR(F,G,methValues['Q'],methValues['R'])
+
+        else:
+            raise ValueError('Stabilization method not understood. Please verify.')
+
+        K1 = np.array([K[0][:system.n]])
+        K2 = np.array([K[0][system.n:]])
+
+        print('K:')
+        print(K)
+        print('K1:')
+        print(K1)
+        print('K2:')
+        print(K2)
+
+        # new_sys = system if subs else copy.deepcopy(system)
+        # new_sys.A = controls.make_hurwitz(system.A,system.B,K1)
+        # new_sys.B = system.B*K2
+        # new_sys.ctrs.applied.append(['poles_placement','PI'])
+        # new_sys.ctrs.K1 = K1
+        # new_sys.ctrs.K2 = K2
+        # new_sys.ctrb = sys_ctrb
+
+        new_sys = system if subs else copy.deepcopy(system)
+        new_sys.A = controls.make_hurwitz(F,G,K)
+        new_sys.B = H
+        new_sys.update_shapes()
+        new_sys.ctrs.applied.append(['poles_placement','PI'])
+        new_sys.ctrs.K1 = K
+        # new_sys.ctrs.K2 = K2
+        new_sys.ctrb = sys_ctrb
+        # new_sys.initialize()
+
+        return new_sys
 
 
 

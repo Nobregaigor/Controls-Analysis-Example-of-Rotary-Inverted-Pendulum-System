@@ -39,6 +39,11 @@ class ctr_sys():
         self.obsv = controls.obsv(self)
         self.print_system()
 
+    def update_shapes(self):
+        self.n = len(self.A)
+        self.m = self.B.shape[1]
+        self.r = len(self.C)
+
     def print_system(self):
         pp('System:')
         print('A:\n' + str(self.A))
@@ -61,7 +66,11 @@ class ctr_sys():
         print('Observability gramian:\n' + str(self.obsv.gram))
         print('\n' + '-'*65 + '\n')
 
-    def plot_response(self,x0,time,c_point=0,title='Untitled',res=100):
+    def plot_response(self,x0,time,c_point=0,title='Untitled',dyn=False,res=100):
+
+        def integrate_x_c(a,b,c):
+            return (b-a) * (0.5*(b+a) - c)
+
         dt = (time[1] - time[0]) / res
         r_t = range(res)
 
@@ -69,26 +78,39 @@ class ctr_sys():
         X_res = np.zeros([self.n,res])
         U_res = np.zeros([self.m,res])
         x = x0
-        
+
         if len(self.ctrs.applied) != 0:
             if self.ctrs.K1.any() != None and self.ctrs.K2 == None:
+                print('K1 ONLY')
                 K1 = self.ctrs.K1
                 K2 = np.array([0])
             elif self.ctrs.K2.any() != None:
+                print('K1 + K2')
                 K1 = self.ctrs.K1
                 K2 = self.ctrs.K2
             else:
+                print('ELSE')
                 K1 = np.zeros([1,self.n])
                 K2 = np.array([0])
         else:
             K1 = K1 = np.zeros([1,self.n])
             K2 = np.array([0])
 
+        # val = x[0] - c_point if dyn else c_point
+        # val = c_point
+        print('A:' + str(self.A.shape))
+        print('B:' + str(self.B.shape))
+        print('C:' + str(self.C.shape))
+
         for i in r_t:
             x = x + dt*(np.matmul(self.A,x) + self.B*c_point)
             X_res[:,i] = x[:,0]
             u = np.matmul(-K1,x) + K2 * c_point
             U_res[:,i] = u[:,0]
+
+            # if i >=1:
+            #     val = integrate_x_c(X_res[0][i-1],x[0],c_point) if dyn else c_point
+            #     print(val)
 
         # Create a plot
         plt.ion()
