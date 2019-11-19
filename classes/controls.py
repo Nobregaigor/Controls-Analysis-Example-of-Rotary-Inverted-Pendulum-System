@@ -427,6 +427,42 @@ class controls:
 
         return new_sys
 
+    def ob_fbbk(system,values,k_meth='LQR',ob_meth='LQR',subs=False):
+
+
+        if k_meth=='PP':
+            K = controls.place_poles(system.A,system.B,values['PPK'])
+
+        elif k_meth=='LQR':
+            K = controls.LQR(system.A,system.B,values['QK'],values['RK'])
+
+
+        # finding L values
+        if ob_meth=='PP':
+            L = controls.place_poles(system.A,system.C,values['PPL'])
+
+        elif ob_meth=='LQR':
+            L = controls.LQR(system.A.transpose(),system.C.transpose(),values['QL'],values['RL'])
+
+        Abar11 = controls.make_hurwitz(system.A,system.B,K)
+        Abar22 = controls.make_hurwitz(system.A.transpose(),system.C.transpose(),L)
+
+        print('Abar11:')
+        print(Abar11)
+        print('Abar22:')
+        print(Abar22)
+
+        # print('B: ' + str(system.B.shape))
+        # print('K: ' + str(K.shape))
+        #
+        # Abar = np.array([[Abar11, np.matmul(system.B,K)], [0, Abar22]])
+        #
+        # print(Abar)
+
+
+
+
+
 
 
 

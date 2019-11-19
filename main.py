@@ -81,10 +81,10 @@ if __name__ == '__main__':
     # pendulum_pp = controls.sf_pole_placement(pendulum,poles)
     #
     # # LQR Optimal solution
-    pendulum_LQR = controls.sf_optimal_LQR(pendulum,Q,R)
+    # pendulum_LQR = controls.sf_optimal_LQR(pendulum,Q,R)
     #
     # # Feedback Feedforward Control (needs a stabilized system)
-    pendulum_fbfw = controls.fbfw(pendulum_LQR)
+    # pendulum_fbfw = controls.fbfw(pendulum_LQR)
 
     #######################################################################
     # Ploting responses
@@ -100,41 +100,50 @@ if __name__ == '__main__':
     # pendulum_LQR.plot_response(x0,t_,title='LQR Stabilization',res=n_points)
     #
     # ## Ploting the response of the command followed system using Feedback Feedforward control
-    pendulum_fbfw.plot_response(x0_C,t_,c_point,title='Feedback Feedforward Control',res=n_points)
+    # pendulum_fbfw.plot_response(x0_C,t_,c_point,title='Feedback Feedforward Control',res=n_points)
     #
     # plt.show(block=True)
 
+#############################
 
-    Q_PI = [[0.5,0,0,0,0],[0,0.1,0,0,0],[0,0,14,0,0],[0,0,0,5,0],[0,0,0,0,15]]
-    R_PI = [[25]]
-
-    pendulumPI = controls.sf_pi(pendulum,{'Q': Q_PI,'R': R_PI})
-
-    x0_C = np.array([[0.],[0.],[0.],[0.],[0.]])
-    pendulumPI.plot_response(x0_C,t_,1.5,title='PI Control',dyn=True,res=n_points)
-
+    #  PI
+    # Q_PI = [[0.5,0,0,0,0],[0,0.1,0,0,0],[0,0,14,0,0],[0,0,0,5,0],[0,0,0,0,15]]
+    # R_PI = [[25]]
     #
-    A = [[0, 1],[0, 0]]
-    B = [[0],[1]]
-    C = [[1, 0]]
-
-    car = ctr_sys(A, B, C)
-
-    pI_poles = [-1.75,-5,-15,-16, -8]
-    Q_PI = np.identity(3)
-    R_PI = [[1]]
-
-    x0_C = np.array([[0],[0],[0]])
-    x1_c_point = x0_C[0] - 1.5
-
-    # pendulumPI = controls.sf_pi(pendulum,pI_poles,'PP')
-    carPI = controls.sf_pi(car,{'Q': Q_PI,'R':R_PI})
-
-    carPI.plot_response(x0_C,t_,1,title='PI Control',dyn=True,res=n_points)
+    # pendulumPI = controls.sf_pi(pendulum,{'Q': Q_PI,'R': R_PI})
     #
-    plt.show(block=True)
+    # x0_C = np.array([[0.],[0.],[0.],[0.],[0.]])
+    # pendulumPI.plot_response(x0_C,t_,1.5,title='PI Control',dyn=True,res=n_points)
 
 
+# TEST:
+    # A = [[0, 1],[0, 0]]
+    # B = [[0],[1]]
+    # C = [[1, 0]]
+    #
+    # car = ctr_sys(A, B, C)
+    #
+    # pI_poles = [-1.75,-5,-15,-16, -8]
+    # Q_PI = np.identity(3)
+    # R_PI = [[1]]
+    #
+    # x0_C = np.array([[0],[0],[0]])
+    # x1_c_point = x0_C[0] - 1.5
+    #
+    # # pendulumPI = controls.sf_pi(pendulum,pI_poles,'PP')
+    # carPI = controls.sf_pi(car,{'Q': Q_PI,'R':R_PI})
+    #
+    # carPI.plot_response(x0_C,t_,1,title='PI Control',dyn=True,res=n_points)
+    # #
+    # plt.show(block=True)
+
+
+################################
+
+# Output feedback
+    Qob = [[14,0,0,0],[0,20,0,0],[0,0,1,0],[0,0,0,1]]
+    obfbbk = {'QK': Q, 'RK': R, 'QL': Q, 'RL': R}
+    pendulum_ob_fbbk = controls.ob_fbbk(pendulum,obfbbk)
 
 
 
