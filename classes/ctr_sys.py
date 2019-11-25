@@ -7,9 +7,10 @@ from classes.controls import controls
 class ctrs():
     def __init__(self):
         self.applied = []
+        self.last = None
         self.K1 = None
         self.K2 = None
-
+        self.L = None
 
 class ctr_sys():
     def __init__(self,A,B,C,D=0,type='LTI'):
@@ -17,6 +18,9 @@ class ctr_sys():
         self.B = np.array(B)
         self.C = np.array(C)
         self.D = np.array(D)
+
+        self.Abar = np.array(A)
+        self.Bbar = np.array(B)
 
         self.type = type
 
@@ -66,51 +70,70 @@ class ctr_sys():
         print('Observability gramian:\n' + str(self.obsv.gram))
         print('\n' + '-'*65 + '\n')
 
-    def plot_response(self,x0,time,c_point=0,title='Untitled',dyn=False,res=100):
-
-        def integrate_x_c(a,b,c):
-            return (b-a) * (0.5*(b+a) - c)
-
-        dt = (time[1] - time[0]) / res
-        r_t = range(res)
-
-        time_ = np.linspace(time[0],time[1],res)
-        X_res = np.zeros([self.n,res])
-        U_res = np.zeros([self.m,res])
-        x = x0
-
+    def check_K_values(self):
         if len(self.ctrs.applied) != 0:
             if self.ctrs.K1.any() != None and self.ctrs.K2 == None:
-                print('K1 ONLY')
                 K1 = self.ctrs.K1
                 K2 = np.array([0])
             elif self.ctrs.K2.any() != None:
-                print('K1 + K2')
                 K1 = self.ctrs.K1
                 K2 = self.ctrs.K2
             else:
-                print('ELSE')
                 K1 = np.zeros([1,self.n])
                 K2 = np.array([0])
         else:
             K1 = K1 = np.zeros([1,self.n])
             K2 = np.array([0])
 
-        # val = x[0] - c_point if dyn else c_point
-        # val = c_point
-        print('A:' + str(self.A.shape))
-        print('B:' + str(self.B.shape))
-        print('C:' + str(self.C.shape))
+        return K1, K2
+
+    def plot_response(self,
+                      x,    # Initial x --> x0
+                      time, # range of time for plotting
+                      c_point=0, # convergence point
+                      z=0, # Initial z for PI controller
+                      title='Untitled',
+                      res=100):
+
+        K1, K2 = self.check_K_values()
+
+        dt = (time[1] - time[0]) / res
+
+        X_res = np.zeros([self.n,res])
+        U_res = np.zeros([self.m,res])
+        Z_res = np.zeros([1,res]) if (self.ctrs.last == 'PI') else None
+
+        x_ob = x + 0.001
+        print('x_ob:')
+        print(x_ob)
+
+        r_t = range(res)
 
         for i in r_t:
-            x = x + dt*(np.matmul(self.A,x) + self.B*c_point)
-            X_res[:,i] = x[:,0]
-            u = np.matmul(-K1,x) + K2 * c_point
-            U_res[:,i] = u[:,0]
 
-            # if i >=1:
-            #     val = integrate_x_c(X_res[0][i-1],x[0],c_point) if dyn else c_point
-            #     print(val)
+            if self.ctrs.last == 'PI':
+                val = -z
+                z = z + dt*(np.subtract(np.matmul(self.C,x), c_point)[0])
+                Z_res[:,i] = z
+            elif self.ctrs.last == 'OB_FBBK':
+                a = np.matmul(self.A,x_ob) + np.matmul(self.B,np.matmul(-K1,x_ob))
+                # print('a:')
+                # print(a)
+                b = self.ctrs.L * np.subtract(np.matmul(self.C,x), np.matmul(self.C,x_ob))
+                # print('b:')
+                # print(b.transpose())
+                x_ob = a + b.transpose()
+                val = x - x_ob
+                # print('val:')
+                # print(val)
+            else:
+                val = c_point
+
+            x = x + dt*(np.matmul(self.Abar,x) + self.Bbar*val)
+            u = np.matmul(-K1,x) + K2 * val
+
+            X_res[:,i] = x[:,0]
+            # U_res[:,i] = u[:,0]
 
         # Create a plot
         plt.ion()
@@ -122,6 +145,7 @@ class ctr_sys():
         U_plot = fig.add_subplot(212)
         U_plot.grid(color='#9c94af', linestyle='--', linewidth=0.5)
 
+        time_ = np.linspace(time[0],time[1],res)
         range_n = range(self.n)
         X_labels = []
         for i in range_n:

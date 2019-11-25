@@ -312,8 +312,9 @@ class controls:
         new_sys = system if subs else copy.deepcopy(system)
 
         #make hurwitz
-        new_sys.A = controls.make_hurwitz(system.A,system.B,K)
+        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
         new_sys.ctrs.applied.append('poles_placement')
+        new_sys.ctrs.last = 'poles_placement'
         new_sys.ctrs.K1 = K
 
         # new_sys.initialize()
@@ -333,9 +334,10 @@ class controls:
 
         new_sys = system if subs else copy.deepcopy(system)
 
-        new_sys.A = controls.make_hurwitz(system.A,system.B,K)
+        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
         new_sys.ctrs.applied.append('LQR')
         new_sys.ctrs.K1 = K
+        new_sys.ctrs.last = 'LQR'
         # new_sys.initialize()
         return new_sys
 
@@ -355,9 +357,10 @@ class controls:
             else:
                 new_sys = system
 
-            new_sys.B = system.B*K2
-            new_sys.ctrs.applied.append('fbfw')
+            new_sys.Bbar = system.B*K2
+            new_sys.ctrs.applied.append('FBFW')
             new_sys.ctrs.K2 = K2
+            new_sys.ctrs.last = 'FBFW'
             # new_sys.initialize()
             return new_sys
         else:
@@ -407,35 +410,34 @@ class controls:
         print('K2:')
         print(K2)
 
-        # new_sys = system if subs else copy.deepcopy(system)
-        # new_sys.A = controls.make_hurwitz(system.A,system.B,K1)
-        # new_sys.B = system.B*K2
-        # new_sys.ctrs.applied.append(['poles_placement','PI'])
-        # new_sys.ctrs.K1 = K1
-        # new_sys.ctrs.K2 = K2
-        # new_sys.ctrb = sys_ctrb
-
         new_sys = system if subs else copy.deepcopy(system)
-        new_sys.A = controls.make_hurwitz(F,G,K)
-        new_sys.B = H
-        new_sys.update_shapes()
+        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K1)
+        new_sys.Bbar = system.B*K2
         new_sys.ctrs.applied.append(['poles_placement','PI'])
-        new_sys.ctrs.K1 = K
-        # new_sys.ctrs.K2 = K2
+        new_sys.ctrs.K1 = K1
+        new_sys.ctrs.K2 = K2
+        new_sys.ctrs.last = 'PI'
         new_sys.ctrb = sys_ctrb
-        # new_sys.initialize()
+
+        # new_sys = system if subs else copy.deepcopy(system)
+        # new_sys.A = controls.make_hurwitz(F,G,K)
+        # new_sys.B = H
+        # new_sys.update_shapes()
+        # new_sys.ctrs.applied.append(['poles_placement','PI'])
+        # new_sys.ctrs.K1 = K
+        # # new_sys.ctrs.K2 = K2
+        # new_sys.ctrb = sys_ctrb
+        # # new_sys.initialize()
 
         return new_sys
 
     def ob_fbbk(system,values,k_meth='LQR',ob_meth='LQR',subs=False):
-
 
         if k_meth=='PP':
             K = controls.place_poles(system.A,system.B,values['PPK'])
 
         elif k_meth=='LQR':
             K = controls.LQR(system.A,system.B,values['QK'],values['RK'])
-
 
         # finding L values
         if ob_meth=='PP':
@@ -444,25 +446,15 @@ class controls:
         elif ob_meth=='LQR':
             L = controls.LQR(system.A.transpose(),system.C.transpose(),values['QL'],values['RL'])
 
-        Abar11 = controls.make_hurwitz(system.A,system.B,K)
-        Abar22 = controls.make_hurwitz(system.A.transpose(),system.C.transpose(),L)
+        new_sys = system if subs else copy.deepcopy(system)
+        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
 
-        print('Abar11:')
-        print(Abar11)
-        print('Abar22:')
-        print(Abar22)
+        new_sys.ctrs.applied.append(['OB_FBBK'])
+        new_sys.ctrs.K1 = K
+        new_sys.ctrs.L = L
+        new_sys.ctrs.last = 'OB_FBBK'
 
-        # print('B: ' + str(system.B.shape))
-        # print('K: ' + str(K.shape))
-        #
-        # Abar = np.array([[Abar11, np.matmul(system.B,K)], [0, Abar22]])
-        #
-        # print(Abar)
-
-
-
-
-
+        return new_sys
 
 
 
