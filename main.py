@@ -61,8 +61,8 @@ if __name__ == '__main__':
     print('_.'*45 + '\n')
 
 
-    #A5
-    #Erronous pendulum
+    ## A5
+    ## Erronous pendulum
     # Aerr = A
     # Aerr[0] = [1,0,0,0]
     #
@@ -105,19 +105,19 @@ if __name__ == '__main__':
     #######################################################################
 
     # Ploting the response of the open loop system
-    pendulum.plot_response(x0,t_,open=True,title='Open Loop response',res=n_points)
+    pendulum.plot_response(x0,t_,open=True,title='Open Loop response')
 
     # Ploting the response of the stabilized system using Pole placement
-    pendulum_pp.plot_response(x0,t_,title='Pole Placement Stabilization',res=n_points)
+    pendulum_pp.plot_response(x0,t_,title='Pole Placement Stabilization')
 
     # Ploting the response of the stabilized system using LQR
-    pendulum_LQR.plot_response(x0,t_,title='LQR Stabilization',res=n_points)
+    pendulum_LQR.plot_response(x0,t_,title='LQR Stabilization')
 
     # Ploting the response of the command followed system using State Feedback Feedback Feedforward control
-    pendulum_sf_fbfw.plot_response(x0_C,t_,c_point,title='SF FBFW Control',res=n_points)
+    pendulum_sf_fbfw.plot_response(x0_C,t_,c_point,title='SF FBFW Control')
 
     # Ploting the response of the command followed system using Output Based Feedback Feedforward control
-    pendulum_ob_fbfw.plot_response(x0_C,t_,c_point,initial_ctrs_params={'x_ob': x0_C + 0.001},title='OB FBFW Control',res=n_points)
+    pendulum_ob_fbfw.plot_response(x0_C,t_,c_point,initial_ctrs_params={'x_ob': x0_C + 0.001},title='OB FBFW Control')
 
     # Ploting the response of the command followed system using State Feedback PI control
     pendulum_SF_PI.plot_response(x0_C,t_,c_point,initial_ctrs_params={'z': 0},title='SF PI Control')
