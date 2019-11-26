@@ -157,6 +157,7 @@ class controls:
     #____________________________________________________________
     # Observability
     #____________________________________________________________
+
     def obsv(system):
         """
             Observability function.
@@ -277,188 +278,6 @@ class controls:
             return sim_transf(system,T)
 
     #____________________________________________________________
-    # State Feedback
-    #____________________________________________________________
-
-    def make_hurwitz(A,B,K):
-        return np.subtract(A, np.matmul(B,K))
-
-    def place_poles(A,B,poles):
-        """
-            Wrapper of the scipy.signal.place_poles
-            Calculates the K matrix of a system with desired poles
-            Requires:
-                System object
-                Array (desired poles)
-            Returns:
-                Numpy array: K matrix with the placed poles
-        """
-        K = spsg.place_poles(A,B,poles)
-        return K.gain_matrix
-
-    def sf_pole_placement(system,poles,subs=False):
-        """
-            State feedback with pole placement function.
-            Calculates the K matrix and applys the state feedback with pole
-                to the system and returns the new system.
-            Requires:
-                System object
-                Array (desired poles)
-            Returns:
-                System object: new system with the applied poles.
-        """
-        K = controls.place_poles(system.A,system.B,poles)
-
-        new_sys = system if subs else copy.deepcopy(system)
-
-        #make hurwitz
-        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
-        new_sys.ctrs.applied.append('poles_placement')
-        new_sys.ctrs.last = 'poles_placement'
-        new_sys.ctrs.K1 = K
-
-        # new_sys.initialize()
-
-        return new_sys
-
-    def LQR(A,B,Q,R):
-        P = spla.solve_continuous_are(A,B,Q,R)
-        K = np.matmul(np.matmul(la.inv(R),B.transpose()),P)
-        return K
-
-    def sf_optimal_LQR(system,Q,R,subs=False):
-
-        # P = spla.solve_continuous_are(system.A,system.B,Q,R)
-        # K = np.matmul(np.matmul(la.inv(R),system.B.transpose()),P)
-        K = controls.LQR(system.A,system.B,Q,R)
-
-        new_sys = system if subs else copy.deepcopy(system)
-
-        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
-        new_sys.ctrs.applied.append('LQR')
-        new_sys.ctrs.K1 = K
-        new_sys.ctrs.last = 'LQR'
-        # new_sys.initialize()
-        return new_sys
-
-    def fbfw(system,subs=False):
-
-        if system.ctrb.type == 'CC':
-            a = np.matmul(-system.C, la.inv(system.A))
-            a = np.matmul(a, system.B)
-
-            if len(a) == 1:
-                K2 = 1/a[0]
-            else:
-                K2 = la.solve(a,np.identity(system.n))
-
-            if subs == False:
-                new_sys = copy.deepcopy(system)
-            else:
-                new_sys = system
-
-            new_sys.Bbar = system.B*K2
-            new_sys.ctrs.applied.append('FBFW')
-            new_sys.ctrs.K2 = K2
-            new_sys.ctrs.last = 'FBFW'
-            # new_sys.initialize()
-            return new_sys
-        else:
-            raise ValueError('System must be CC. Please, check input system.')
-
-
-    def sf_pi(system,methValues,meth='LQR',stab_test=False,subs=False):
-        # def new system:
-        F = np.c_[ np.vstack([system.A, system.C]), np.zeros(system.A.shape[0] + system.C.shape[0])]
-        G = np.r_[ system.B, np.zeros([system.B.shape[1],system.B.shape[1]])]
-        H = np.r_[ np.zeros([system.B.shape[0],system.B.shape[1]]), -np.identity(system.B.shape[1])]
-
-        print('F:')
-        print(F)
-        print('G:')
-        print(G)
-        print('H:')
-        print(H)
-
-        #check controlability
-        c_matrix = np.vstack((np.hstack((system.A,system.B)), np.hstack((system.C, np.zeros([system.C.shape[0],system.B.shape[1]])))))
-        print('c_matrix:')
-        print(c_matrix)
-
-        if la.matrix_rank(c_matrix) == system.n + system.m:
-            sys_ctrb = 'CC'
-        else:
-            sys_ctrb = 'NCC'
-
-        # Find K values
-        if meth=='PP':
-            K = controls.place_poles(F,G,methValues)
-
-        elif meth=='LQR':
-            K = controls.LQR(F,G,methValues['Q'],methValues['R'])
-
-        else:
-            raise ValueError('Stabilization method not understood. Please verify.')
-
-        K1 = np.array([K[0][:system.n]])
-        K2 = np.array([K[0][system.n:]])
-
-        print('K:')
-        print(K)
-        print('K1:')
-        print(K1)
-        print('K2:')
-        print(K2)
-
-        new_sys = system if subs else copy.deepcopy(system)
-        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K1)
-        new_sys.Bbar = system.B*K2
-        new_sys.ctrs.applied.append(['poles_placement','PI'])
-        new_sys.ctrs.K1 = K1
-        new_sys.ctrs.K2 = K2
-        new_sys.ctrs.last = 'PI'
-        new_sys.ctrb = sys_ctrb
-
-        # new_sys = system if subs else copy.deepcopy(system)
-        # new_sys.A = controls.make_hurwitz(F,G,K)
-        # new_sys.B = H
-        # new_sys.update_shapes()
-        # new_sys.ctrs.applied.append(['poles_placement','PI'])
-        # new_sys.ctrs.K1 = K
-        # # new_sys.ctrs.K2 = K2
-        # new_sys.ctrb = sys_ctrb
-        # # new_sys.initialize()
-
-        return new_sys
-
-    def ob_fbbk(system,values,k_meth='LQR',ob_meth='LQR',subs=False):
-
-        if k_meth=='PP':
-            K = controls.place_poles(system.A,system.B,values['PPK'])
-
-        elif k_meth=='LQR':
-            K = controls.LQR(system.A,system.B,values['QK'],values['RK'])
-
-        # finding L values
-        if ob_meth=='PP':
-            L = controls.place_poles(system.A,system.C,values['PPL'])
-
-        elif ob_meth=='LQR':
-            L = controls.LQR(system.A.transpose(),system.C.transpose(),values['QL'],values['RL'])
-
-        new_sys = system if subs else copy.deepcopy(system)
-        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
-
-        new_sys.ctrs.applied.append(['OB_FBBK'])
-        new_sys.ctrs.K1 = K
-        new_sys.ctrs.L = L
-        new_sys.ctrs.last = 'OB_FBBK'
-
-        return new_sys
-
-
-
-    #____________________________________________________________
     # State transition matrix
     #____________________________________________________________
 
@@ -543,3 +362,262 @@ class controls:
         print(phi)
 
         return phi
+
+    def make_hurwitz(A,B,K):
+        return np.subtract(A, np.matmul(B,K))
+
+    #____________________________________________________________
+    # Pole Placement
+    #____________________________________________________________
+
+    def place_poles(A,B,poles):
+        """
+            Wrapper of the scipy.signal.place_poles
+            Calculates the K matrix of a system with desired poles
+            Requires:
+                System object
+                Array (desired poles)
+            Returns:
+                Numpy array: K matrix with the placed poles
+        """
+        K = spsg.place_poles(A,B,poles)
+        return K.gain_matrix
+
+    def sf_pole_placement(system,poles,subs=False):
+        """
+            State feedback with pole placement function.
+            Calculates the K matrix and applys the state feedback with pole
+                to the system and returns the new system.
+            Requires:
+                System object
+                Array (desired poles)
+            Returns:
+                System object: new system with the applied poles.
+        """
+        K = controls.place_poles(system.A,system.B,poles)
+
+        def u(self,x,c_point=0,dt=0.001):
+            u = - np.matmul(self.K1,x)
+            return u
+
+        new_sys = system if subs else copy.deepcopy(system)
+        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
+
+        new_sys.K1 = K
+        new_sys.u = u
+
+        new_sys.ctrs.applied.append('poles_placement')
+        new_sys.ctrs.last = 'poles_placement'
+
+        return new_sys
+
+    #____________________________________________________________
+    # LQR
+    #____________________________________________________________
+
+    def LQR(A,B,Q,R):
+        P = spla.solve_continuous_are(A,B,Q,R)
+        K = np.matmul(np.matmul(la.inv(R),B.transpose()),P)
+        return K
+
+    def sf_optimal_LQR(system,Q,R,subs=False):
+
+        K = controls.LQR(system.A,system.B,Q,R)
+
+        def u(self,x,c_point=0,dt=0.001):
+            u = - np.matmul(self.K1,x)
+            return u
+
+        new_sys = system if subs else copy.deepcopy(system)
+        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K)
+
+        new_sys.K1 = K
+        new_sys.u = u
+
+        new_sys.ctrs.applied.append('LQR')
+        new_sys.ctrs.last = 'LQR'
+
+        return new_sys
+
+    #____________________________________________________________
+    # Feedback / Feedforward SF and OB Control
+    #____________________________________________________________
+
+    def fbfw(system,values,type='SF',k_meth='LQR',ob_meth='LQR',subs=False):
+
+        if k_meth =='PP':
+            K1 = controls.place_poles(system.A,system.B,values['PPK'])
+
+        elif k_meth =='LQR':
+            K1 = controls.LQR(system.A,system.B,values['QK'],values['RK'])
+        else:
+            raise ValueError('K Stabilization method not understood. Please verify.')
+
+        Abar = controls.make_hurwitz(system.A,system.B,K1)
+        a = np.matmul(np.matmul(-system.C, la.inv(Abar)),system.B)
+
+        if len(a) == 1:
+            K2 = 1/a[0]
+        else:
+            K2 = la.solve(a,np.identity(system.n))
+
+        # finding L values
+        if type == 'OB':
+            if ob_meth =='PP':
+                L = controls.place_poles(system.A.transpose(),system.C.transpose(),values['PPL'])
+
+            elif ob_meth =='LQR':
+                L = controls.LQR(system.A.transpose(),system.C.transpose(),values['QL'],values['RL'])
+            else:
+                raise ValueError('L Stabilization method not understood. Please verify.')
+
+            def u(self,x,c_point=0,dt=0.001):
+
+                u = - np.matmul(self.K1,new_sys.ctrs.strg['x_ob']) + self.K2 * c_point
+                new_sys.ctrs.strg['x_ob'] = new_sys.ctrs.strg['x_ob'] + dt*(np.matmul(self.A,new_sys.ctrs.strg['x_ob']) + np.matmul(self.B,u) + self.L * np.subtract(np.matmul(self.C,x),np.matmul(self.C,new_sys.ctrs.strg['x_ob'])))
+                new_sys.ctrs.strg['e'] = x - new_sys.ctrs.strg['x_ob']
+
+                # Saving response in case it is needed later or it needs to be plotted
+                new_sys.ctrs.res['x_ob'].append(new_sys.ctrs.strg['x_ob'])
+                new_sys.ctrs.res['e'].append(new_sys.ctrs.strg['e'])
+
+                return u
+
+        elif type == 'SF':
+            def u(self,x,c_point=0,dt=0.001):
+                u = - np.matmul(self.K1,x) + self.K2 * c_point
+                return u
+        else:
+            raise ValueError('FBFW type not understood. Please verify, options are: SF or OB')
+
+
+        new_sys = system if subs else copy.deepcopy(system)
+        new_sys.Abar = Abar
+        new_sys.Bbar = system.B*K2
+
+        new_sys.K = [K1, K2]
+        new_sys.K1 = K1
+        new_sys.K2 = K2
+        new_sys.L = L.transpose() if type == 'OB' else None
+        new_sys.u = u
+
+        new_sys.ctrs.applied.append(['OB_FBBK'])
+        new_sys.ctrs.strg = {'x_ob': 0, 'e': 0 }
+        new_sys.ctrs.res = {'x_ob': [], 'e': []}
+        new_sys.ctrs.last = 'OB_FBBK'
+
+
+        return new_sys
+
+    #____________________________________________________________
+    # PI Control
+    #____________________________________________________________
+
+    def pi(system,values,type='SF',k_meth='LQR',ob_meth='LQR',subs=False):
+        # def new system:
+        F = np.c_[ np.vstack([system.A, system.C]), np.zeros(system.A.shape[0] + system.C.shape[0])]
+        G = np.r_[ system.B, np.zeros([system.B.shape[1],system.B.shape[1]])]
+        H = np.r_[ np.zeros([system.B.shape[0],system.B.shape[1]]), -np.identity(system.B.shape[1])]
+
+        #check controlability
+        c_matrix = np.vstack((np.hstack((system.A,system.B)), np.hstack((system.C, np.zeros([system.C.shape[0],system.B.shape[1]])))))
+
+        if la.matrix_rank(c_matrix) == system.n + system.m:
+            sys_ctrb = 'CC'
+        else:
+            sys_ctrb = 'NCC'
+
+        # Find K values
+        if k_meth =='PP':
+            K = controls.place_poles(F,G,values['PPK'])
+        elif k_meth =='LQR':
+            K = controls.LQR(F,G,values['QK'],values['RK'])
+        else:
+            raise ValueError('Stabilization method not understood. Please verify.')
+
+        K1 = np.array([K[0][:system.n]])
+        K2 = np.array([K[0][system.n:]])
+
+        if type == 'OB':
+            if ob_meth =='PP':
+                L = controls.place_poles(system.A.transpose(),system.C.transpose(),values['PPL'])
+
+            elif ob_meth =='LQR':
+                L = controls.LQR(system.A.transpose(),system.C.transpose(),values['QL'],values['RL'])
+            else:
+                raise ValueError('L Stabilization method not understood. Please verify.')
+
+            def u(self,x,c_point=0,dt=0.001):
+
+                u = - np.matmul(self.K1,new_sys.ctrs.strg['x_ob']) - self.K2 * new_sys.ctrs.strg['z']
+                new_sys.ctrs.strg['z'] = new_sys.ctrs.strg['z'] + dt*(np.subtract(np.matmul(self.C,x), c_point)[0])
+                new_sys.ctrs.strg['x_ob'] = new_sys.ctrs.strg['x_ob'] + dt*(np.matmul(self.A,new_sys.ctrs.strg['x_ob']) + np.matmul(self.B,u) + self.L * np.subtract(np.matmul(self.C,x),np.matmul(self.C,new_sys.ctrs.strg['x_ob'])))
+                new_sys.ctrs.strg['e'] = x - new_sys.ctrs.strg['x_ob']
+
+                # Saving response in case it is needed later or it needs to be plotted
+                new_sys.ctrs.res['z'].append(new_sys.ctrs.strg['z'])
+                new_sys.ctrs.res['x_ob'].append(new_sys.ctrs.strg['x_ob'])
+                new_sys.ctrs.res['e'].append(new_sys.ctrs.strg['e'])
+
+                return u
+
+        elif type == 'SF':
+            def u(self,x,c_point=0,dt=0.001):
+
+                u = - np.matmul(self.K1,x) - self.K2 * new_sys.ctrs.strg['z']
+                new_sys.ctrs.strg['z'] = new_sys.ctrs.strg['z'] + dt*(np.subtract(np.matmul(self.C,x), c_point)[0])
+
+                # Saving response in case it is needed later or it needs to be plotted
+                new_sys.ctrs.res['z'].append(new_sys.ctrs.strg['z'])
+                return u
+
+        else:
+            raise ValueError('FBFW type not understood. Please verify, options are: SF or OB')
+
+        new_sys = system if subs else copy.deepcopy(system)
+        new_sys.Abar = controls.make_hurwitz(system.A,system.B,K1)
+        new_sys.Bbar = system.B*K2
+
+        new_sys.K = K
+        new_sys.K1 = K1
+        new_sys.K2 = K2
+        new_sys.L = L.transpose() if type == 'OB' else None
+        new_sys.u = u
+
+        new_sys.ctrs.last = 'PI'
+        new_sys.ctrs.applied.append(['poles_placement','PI'])
+        new_sys.ctrs.strg = {'z': 0, 'x_ob': 0, 'e': 0 }
+        new_sys.ctrs.res = {'z': [], 'x_ob': [], 'e': []}
+
+        # new_sys.ctrb = sys_ctrb
+
+        return new_sys
+
+# OLD:
+# def fbfw(system,subs=False):
+#
+#     if system.ctrb.type == 'CC':
+#
+#         Abar = controls.make_hurwitz(system.A,system.B,system.K1)
+#         a = np.matmul(np.matmul(-system.C, la.inv(Abar)),system.B)
+#
+#         if len(a) == 1:
+#             K2 = 1/a[0]
+#         else:
+#             K2 = la.solve(a,np.identity(system.n))
+#
+#         def u(self,x,c_point=0,dt=0.001):
+#             u = -np.matmul(self.K1,x) + self.K2 * c_point
+#             return u
+#
+#         new_sys = system if subs else copy.deepcopy(system)
+#         new_sys.Bbar = system.B*K2
+#         new_sys.K2 = K2
+#         new_sys.u = u
+#
+#         new_sys.ctrs.applied.append('FBFW')
+#         new_sys.ctrs.last = 'FBFW'
+#         # new_sys.initialize()
+#         return new_sys
+#     else:
+#         raise ValueError('System must be CC. Please, check input system.')

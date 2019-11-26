@@ -77,46 +77,71 @@ if __name__ == '__main__':
     # Applying Control
     #######################################################################
 
-    # # Pole placement
-    # pendulum_pp = controls.sf_pole_placement(pendulum,poles)
-    #
-    # # LQR Optimal solution
-    # pendulum_LQR = controls.sf_optimal_LQR(pendulum,Q,R)
-    #
-    # # Feedback Feedforward Control (needs a stabilized system)
-    # pendulum_fbfw = controls.fbfw(pendulum_LQR)
+    # Pole placement
+    pendulum_pp = controls.sf_pole_placement(pendulum,poles)
+
+    # LQR Optimal solution
+    pendulum_LQR = controls.sf_optimal_LQR(pendulum,Q,R)
+
+    # State Feedback , Feedback Feedforward Control
+    sffbfw = {'QK': Q, 'RK': R}
+    pendulum_sf_fbfw = controls.fbfw(pendulum,sffbfw,type='SF')
+
+    # Observed Based , Feedback Feedforward Control
+    poles_OB_FBFW = {'PPK': [-3, -5, -6, -8], 'PPL': [-2.66, -5, -6, -8]}
+    pendulum_ob_fbfw = controls.fbfw(pendulum,poles_OB_FBFW,type='OB',k_meth='PP',ob_meth='PP')
+
+    # State Feedback , PI Control
+    poles_SF_PI = {'PPK': [-2.66, -5, -6, -8, -15]}
+    pendulum_SF_PI = controls.pi(pendulum, poles_SF_PI, type='SF',k_meth='PP')
+
+    # Output Based , PI Control
+    poles_OB_PI = {'PPK': [-2.66, -5, -6, -8, -15], 'PPL': [-2.66, -5, -6, -8]}
+    pendulum_OB_PI = controls.pi(pendulum, poles_OB_PI, type='OB',k_meth='PP',ob_meth='PP')
+
 
     #######################################################################
     # Ploting responses
     #######################################################################
 
-    # ## Ploting the response of the open loop system
-    # pendulum.plot_response(x0,t_,title='Open Loop response',res=n_points)
-    #
-    # ## Ploting the response of the stabilized system using Pole placement
-    # pendulum_pp.plot_response(x0,t_,title='Pole Placement Stabilization',res=n_points)
-    #
-    # ## Ploting the response of the stabilized system using LQR
-    # pendulum_LQR.plot_response(x0,t_,title='LQR Stabilization',res=n_points)
-    #
-    # ## Ploting the response of the command followed system using Feedback Feedforward control
-    # pendulum_fbfw.plot_response(x0_C,t_,c_point,title='Feedback Feedforward Control',res=n_points)
-    #
-    # plt.show(block=True)
+    # Ploting the response of the open loop system
+    pendulum.plot_response(x0,t_,open=True,title='Open Loop response',res=n_points)
+
+    # Ploting the response of the stabilized system using Pole placement
+    pendulum_pp.plot_response(x0,t_,title='Pole Placement Stabilization',res=n_points)
+
+    # Ploting the response of the stabilized system using LQR
+    pendulum_LQR.plot_response(x0,t_,title='LQR Stabilization',res=n_points)
+
+    # Ploting the response of the command followed system using State Feedback Feedback Feedforward control
+    pendulum_sf_fbfw.plot_response(x0_C,t_,c_point,title='SF FBFW Control',res=n_points)
+
+    # Ploting the response of the command followed system using Output Based Feedback Feedforward control
+    pendulum_ob_fbfw.plot_response(x0_C,t_,c_point,initial_ctrs_params={'x_ob': x0_C + 0.001},title='OB FBFW Control',res=n_points)
+
+    # Ploting the response of the command followed system using State Feedback PI control
+    pendulum_SF_PI.plot_response(x0_C,t_,c_point,initial_ctrs_params={'z': 0},title='SF PI Control')
+
+    # Ploting the response of the command followed system using Output Based PI control
+    pendulum_OB_PI.plot_response(x0_C,t_,c_point,initial_ctrs_params={'z': 0, 'x_ob': x0_C + 0.1},title='OB PI Control')
+
+    plt.show(block=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #############################
-
-    # #PI
-    Q_PI = [[100,0,0,0,0],[0,10000,0,0,0],[0,0,10,0,0],[0,0,0,10,0],[0,0,0,0,100]]
-    R_PI = [[100]]
-
-    poles_PI = [-2.66, -5, -6, -8, -15]
-
-    # pendulumPI = controls.sf_pi(pendulum,{'Q': Q_PI,'R': R_PI})
-    pendulumPI = controls.sf_pi(pendulum,poles_PI,'PP')
-
-    pendulumPI.plot_response(x0_C,t_,1.5,z=0,title='PI Control',res=n_points)
-
 
 # TEST:
     # A = [[0, 1],[0, 0]]
@@ -141,32 +166,3 @@ if __name__ == '__main__':
 
 
 ################################
-
-# Output feedback
-    Qob = [[14,0,0,0],[0,20,0,0],[0,0,1,0],[0,0,0,1]]
-    obfbbk = {'QK': Q, 'RK': R, 'QL': Q, 'RL': R}
-    pendulum_ob_fbbk = controls.ob_fbbk(pendulum,obfbbk)
-
-    pendulum_ob_fbbk.plot_response(x0_C,t_,1.5,title='OB FBBK Control',res=n_points)
-
-
-
-    plt.show(block=True)
-
-
-
-
-
-    # phi = controls.apply_method3(pendulum.A)
-
-    # A = [[1, -3], [4, 2]]
-    # B = [[1], [1]]
-    # C = [1, 0]
-    #
-    # ss = ctr_sys(A,B,C)
-    #
-    # ss1 = controls.sf_pole_placement(ss,[-1,-2])
-    # ss1.initialize()
-    #
-    # x0 = np.array([[3],[5]])
-    # ss1.plot_response(x0,[0,10],100)

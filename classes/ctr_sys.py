@@ -8,9 +8,8 @@ class ctrs():
     def __init__(self):
         self.applied = []
         self.last = None
-        self.K1 = None
-        self.K2 = None
-        self.L = None
+        self.strg = None
+        self.res = None
 
 class ctr_sys():
     def __init__(self,A,B,C,D=0,type='LTI'):
@@ -21,6 +20,11 @@ class ctr_sys():
 
         self.Abar = np.array(A)
         self.Bbar = np.array(B)
+
+        self.K = None
+        self.K1 = None
+        self.K2 = None
+        self.L = None
 
         self.type = type
 
@@ -38,7 +42,10 @@ class ctr_sys():
 
 
     def initialize(self):
-        self.stbly = controls.stbly(self.A)
+        if len(self.ctrs.applied) == 0:
+            self.stbly = controls.stbly(self.A)
+        else:
+            self.stbly = controls.stbly(self.Abar)
         self.ctrb = controls.ctrb(self)
         self.obsv = controls.obsv(self)
         self.print_system()
@@ -72,12 +79,12 @@ class ctr_sys():
 
     def check_K_values(self):
         if len(self.ctrs.applied) != 0:
-            if self.ctrs.K1.any() != None and self.ctrs.K2 == None:
-                K1 = self.ctrs.K1
+            if self.K1.any() != None and self.K2 == None:
+                K1 = self.K1
                 K2 = np.array([0])
-            elif self.ctrs.K2.any() != None:
-                K1 = self.ctrs.K1
-                K2 = self.ctrs.K2
+            elif self.K2.any() != None:
+                K1 = self.K1
+                K2 = self.K2
             else:
                 K1 = np.zeros([1,self.n])
                 K2 = np.array([0])
@@ -87,53 +94,45 @@ class ctr_sys():
 
         return K1, K2
 
+    def init_ctrs_storage(self,args):
+        for key in args:
+            self.ctrs.strg[key] = args[key]
+
+    def flush_ctrs_res(self):
+        if self.ctrs.res != None:
+            for key in self.ctrs.res:
+                self.ctrs.res[key] = []
+
     def plot_response(self,
                       x,    # Initial x --> x0
                       time, # range of time for plotting
                       c_point=0, # convergence point
-                      z=0, # Initial z for PI controller
+                      initial_ctrs_params = False,
+                      open=False,
                       title='Untitled',
-                      res=100):
+                      res=800):
 
-        K1, K2 = self.check_K_values()
+        self.flush_ctrs_res()
+        self.init_ctrs_storage(initial_ctrs_params) if initial_ctrs_params else None
 
         dt = (time[1] - time[0]) / res
 
         X_res = np.zeros([self.n,res])
         U_res = np.zeros([self.m,res])
-        Z_res = np.zeros([1,res]) if (self.ctrs.last == 'PI') else None
-
-        x_ob = x + 0.001
-        print('x_ob:')
-        print(x_ob)
 
         r_t = range(res)
 
-        for i in r_t:
+        if open:
+            for i in r_t:
+                x = x + dt*(np.matmul(self.A,x))
+                X_res[:,i] = x[:,0]
+        else:
+            for i in r_t:
+                u = self.u(self,x,c_point,dt)
+                x = x + dt*(np.matmul(self.A,x) + self.B * u )
 
-            if self.ctrs.last == 'PI':
-                val = -z
-                z = z + dt*(np.subtract(np.matmul(self.C,x), c_point)[0])
-                Z_res[:,i] = z
-            elif self.ctrs.last == 'OB_FBBK':
-                a = np.matmul(self.A,x_ob) + np.matmul(self.B,np.matmul(-K1,x_ob))
-                # print('a:')
-                # print(a)
-                b = self.ctrs.L * np.subtract(np.matmul(self.C,x), np.matmul(self.C,x_ob))
-                # print('b:')
-                # print(b.transpose())
-                x_ob = a + b.transpose()
-                val = x - x_ob
-                # print('val:')
-                # print(val)
-            else:
-                val = c_point
-
-            x = x + dt*(np.matmul(self.Abar,x) + self.Bbar*val)
-            u = np.matmul(-K1,x) + K2 * val
-
-            X_res[:,i] = x[:,0]
-            # U_res[:,i] = u[:,0]
+                X_res[:,i] = x[:,0]
+                U_res[:,i] = u[:,0]
 
         # Create a plot
         plt.ion()
