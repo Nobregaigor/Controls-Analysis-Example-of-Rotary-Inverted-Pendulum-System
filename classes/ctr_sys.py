@@ -103,37 +103,87 @@ class ctr_sys():
             for key in self.ctrs.res:
                 self.ctrs.res[key] = []
 
+    def check_gain_margin(self,dw=0.001, plot=False,x=None,time=None,title='Untitled',res=800):
+        w = 0
+        print('Checking Stability')
+        # Increment w by dw until the stability of the system changes
+        while True:
+            w += dw
+            # Make system hurwitz with the value of K1, multiplied by w
+            Abar = np.subtract(self.A, np.matmul(self.B,self.K1) * w)
+            # Check the system stability
+            stbly = controls.stbly(Abar)
+            # When the calculate stability is different from the original,
+            # break the loop and return the gain margin k
+            if stbly.type != self.stbly.type:
+                print('Stablity changed')
+                print('w = ' + str(w))
+                break
+        # If the user required to plot, simulate the response with u*w
+        if plot:
+            # Determine the incremental time dt based on input time range and plot resolution
+            dt = (time[1] - time[0]) / res
+            # Populate empy arrays X and U to store response information
+            X_res = np.zeros([self.n,res])
+            U_res = np.zeros([self.m,res])
+            r_t = range(res)
+            for i in r_t:
+                # Calculate signal u based on applied control
+                u = self.u(self,x,dt=dt)*w
+                # Calculate system behavior
+                x = x + dt*(np.matmul(self.A,x) + self.B * u )
+                # Store system response
+                X_res[:,i] = x[:,0]
+                U_res[:,i] = u[:,0]
+
+            self.plot(X_res,U_res,time,title,res)
+
+        return w - dw
+
+
+
     def plot_response(self,
                       x,    # Initial x --> x0
                       time, # range of time for plotting
                       c_point=0, # convergence point
-                      initial_ctrs_params = False,
-                      open=False,
-                      title='Untitled',
-                      res=800):
+                      initial_ctrs_params = False, # Used to determine initial conditions for the controls
+                      open=False, # Boolean to determine plot type (open or closed loop system)
+                      title='Untitled', # Plot title
+                      res=800): #Resolution of the plot
 
+        # Reset all the controls response stored in the ctrs storage
         self.flush_ctrs_res()
+        # Initialize the initial conditions for the ctrls (if not already initialized)
         self.init_ctrs_storage(initial_ctrs_params) if initial_ctrs_params else None
-
+        # Determine the incremental time dt based on input time range and plot resolution
         dt = (time[1] - time[0]) / res
-
+        # Populate empy arrays X and U to store response information
         X_res = np.zeros([self.n,res])
         U_res = np.zeros([self.m,res])
 
+        # Simulate the response by looping through time range
         r_t = range(res)
-
+        # If the required plot is the open loop calculate without controls logic
         if open:
             for i in r_t:
                 x = x + dt*(np.matmul(self.A,x))
                 X_res[:,i] = x[:,0]
+        # If the required plot is closed loop, include the controls logic
         else:
             for i in r_t:
+                # Calculate signal u based on applied control
                 u = self.u(self,x,c_point,dt)
+                # Calculate system behavior
                 x = x + dt*(np.matmul(self.A,x) + self.B * u )
-
+                # Store system response
                 X_res[:,i] = x[:,0]
                 U_res[:,i] = u[:,0]
 
+        self.plot(X_res,U_res,time,title,res)
+
+        return X_res, U_res
+
+    def plot(self,X_res,U_res,time,title,res):
         # Create a plot
         plt.ion()
         # Create a figure
